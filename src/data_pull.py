@@ -72,9 +72,10 @@ def _portfolio_item_to_dict(item) -> dict:
         # Options-specific attributes (ids may differ slightly between setups; be defensive)
         base.update(
             {
-                "strike": getattr(contract, "strike", None),
-                "expiry": getattr(contract, "lastTradeDateOrContractMonth", None),
-                "put_call": getattr(contract, "right", None),
+                "con_id":     getattr(contract, "conId", None),
+                "strike":     getattr(contract, "strike", None),
+                "expiry":     getattr(contract, "lastTradeDateOrContractMonth", None),
+                "put_call":   getattr(contract, "right", None),
                 "underlying": getattr(contract, "symbol", None),
                 "multiplier": getattr(contract, "multiplier", None),
             }

@@ -16,6 +16,7 @@ class IBConfig:
     accounts: list          # All accounts to subscribe to; first is used at connect time
     greeks_use_ib: bool     # True = try reqMktData (requires market data subscription)
     max_options_greeks: int # How many option rows to compute Greeks for
+    crash_scenarios: list   # e.g. [-0.10, -0.20, -0.30, -0.40, -0.50]
 
 
 def get_ib_config() -> IBConfig:
@@ -31,6 +32,9 @@ def get_ib_config() -> IBConfig:
     greeks_use_ib = os.getenv("GREEKS_USE_IB", "false").strip().lower() == "true"
     max_options_greeks = int(os.getenv("MAX_OPTIONS_GREEKS", "4"))
 
+    raw_scenarios = os.getenv("CRASH_SCENARIOS", "-0.10,-0.20,-0.30,-0.40,-0.50")
+    crash_scenarios = [float(s.strip()) for s in raw_scenarios.split(",") if s.strip()]
+
     return IBConfig(
         host=host,
         port=port,
@@ -39,6 +43,7 @@ def get_ib_config() -> IBConfig:
         accounts=accounts,
         greeks_use_ib=greeks_use_ib,
         max_options_greeks=max_options_greeks,
+        crash_scenarios=crash_scenarios,
     )
 
 

@@ -46,20 +46,40 @@ def _fmt_currency(val: float, decimals: int = 0) -> str:
 
 
 def main():
-    st.button("Refresh positions")
+    refresh_clicked = st.button("Refresh positions")
 
-    with st.spinner("Connecting to IBKR and loading positions..."):
-        try:
-            stocks_df, options_df, summary = get_portfolio_frames()
-        except Exception as exc:
-            logger.exception("Failed to load positions from IBKR")
-            st.error(
-                "Could not load positions from IBKR. "
-                "Please ensure TWS or IB Gateway is running, API access is enabled, "
-                "and the host/port/clientId in `.env` are correct.\n\n"
-                f"Error: {exc}"
-            )
-            return
+    # Load data on first visit or when Refresh is explicitly clicked.
+    # Between refreshes, the cached values in session_state are shown instantly.
+    needs_load = (
+        refresh_clicked
+        or "stocks_df" not in st.session_state
+        or "options_df" not in st.session_state
+    )
+
+    if needs_load:
+        with st.spinner("Fetching positions and Greeks from IBKR…"):
+            try:
+                stocks_df, options_df, hedge_df, crash_df, summary = get_portfolio_frames()
+            except Exception as exc:
+                logger.exception("Failed to load positions from IBKR")
+                st.error(
+                    "Could not load positions from IBKR. "
+                    "Please ensure TWS or IB Gateway is running, API access is enabled, "
+                    "and the host/port/clientId in `.env` are correct.\n\n"
+                    f"Error: {exc}"
+                )
+                return
+            st.session_state["stocks_df"] = stocks_df
+            st.session_state["options_df"] = options_df
+            st.session_state["hedge_df"]   = hedge_df
+            st.session_state["crash_df"]   = crash_df
+            st.session_state["summary"]    = summary
+    else:
+        stocks_df = st.session_state["stocks_df"]
+        options_df = st.session_state["options_df"]
+        hedge_df   = st.session_state["hedge_df"]
+        crash_df   = st.session_state["crash_df"]
+        summary    = st.session_state["summary"]
 
     if stocks_df.empty and options_df.empty:
         st.warning("No positions returned from IBKR.")
@@ -72,10 +92,22 @@ def main():
 
     # ── §8.2 Concentration Heatmap ─────────────────────────────────────────────
     if not stocks_df.empty and "weight_pct" in stocks_df.columns:
-        st.subheader("Concentration Heatmap")
-        _show_concentration_heatmap(stocks_df)
+        with st.expander("Concentration Heatmap", expanded=False):
+            _show_concentration_heatmap(stocks_df)
 
     st.divider()
+
+    # ── §8.3 Hedge Coverage Table ──────────────────────────────────────────────
+    if not hedge_df.empty:
+        st.subheader("Hedge Coverage")
+        _show_hedge_coverage_table(hedge_df)
+        st.divider()
+
+    # ── §8.4 Crash Scenario Matrix ─────────────────────────────────────────────
+    if not crash_df.empty:
+        st.subheader("Crash Scenario Matrix")
+        _show_crash_scenario_matrix(crash_df)
+        st.divider()
 
     # ── Raw positions tables ───────────────────────────────────────────────────
     col1, col2 = st.columns(2)
@@ -185,6 +217,103 @@ def _show_concentration_heatmap(stocks_df: pd.DataFrame) -> None:
 
     st.plotly_chart(fig, width="stretch")
     st.caption("🟢 < 10%  ·  🟡 10–25%  ·  🔴 > 25%")
+
+
+def _show_crash_scenario_matrix(crash_df: pd.DataFrame) -> None:
+    """§8.4 — Crash Scenario Matrix: table + bar chart."""
+    df = crash_df.copy()
+
+    # ── Formatted display table ──
+    display = pd.DataFrame()
+    display["Scenario"]    = df["scenario_pct"].apply(lambda v: f"{v*100:.0f}%")
+    display["Stock P&L"]   = df["stock_pnl"].apply(_fmt_currency)
+    display["Options P&L"] = df["options_pnl"].apply(_fmt_currency)
+    display["Net P&L"]     = df["net_pnl"].apply(_fmt_currency)
+    display["Net %"]       = df["net_pct"].apply(lambda v: f"{v:+.2f}%")
+
+    # Colour the Net % column: deeper red = worse loss, green = gain
+    def _colour_net(val: str) -> str:
+        try:
+            v = float(val.replace("%", "").replace("+", ""))
+        except ValueError:
+            return ""
+        if v >= 0:
+            return "color: #22c55e; font-weight: bold"
+        intensity = min(int(abs(v) / 50 * 200) + 55, 255)
+        return f"color: rgb({intensity}, 50, 50); font-weight: bold"
+
+    styled = display.style.map(_colour_net, subset=["Net %"])
+    st.dataframe(styled, width="stretch", hide_index=True)
+    st.caption(
+        "Options P&L uses delta + gamma approximation (first-order Taylor expansion). "
+        "Vega expansion not modelled — actual tail-option gains in extreme moves will be higher."
+    )
+
+    # ── Bar chart ──
+    colours = ["#22c55e" if v >= 0 else "#ef4444" for v in df["net_pnl"]]
+    fig = go.Figure(go.Bar(
+        x=df["scenario_pct"].apply(lambda v: f"{v*100:.0f}%"),
+        y=df["net_pnl"],
+        marker_color=colours,
+        text=df["net_pnl"].apply(lambda v: f"${v:,.0f}"),
+        textposition="outside",
+        hovertemplate="<b>%{x}</b><br>Net P&L: $%{y:,.0f}<extra></extra>",
+    ))
+    fig.update_layout(
+        xaxis_title="Scenario (equity move)",
+        yaxis_title="Net P&L ($)",
+        height=320,
+        margin=dict(l=10, r=10, t=10, b=30),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        showlegend=False,
+    )
+    fig.add_hline(y=0, line_dash="dash", line_color="rgba(150,150,150,0.5)")
+    st.plotly_chart(fig, width="stretch")
+
+
+_HEDGE_STATUS_ICON = {
+    "hedged":   "✅ Hedged",
+    "partial":  "🟡 Partial",
+    "light":    "⚠️ Light",
+    "unhedged": "❌ Unhedged",
+}
+
+
+def _show_hedge_coverage_table(hedge_df: pd.DataFrame) -> None:
+    """§8.3 — Hedge Coverage Table. Unhedged high-risk positions float to top."""
+    df = hedge_df.copy()
+
+    df["Status"] = df["status"].map(_HEDGE_STATUS_ICON).fillna(df["status"])
+    df["Equity Value"] = df["equity_value"].apply(lambda v: _fmt_currency(v))
+    df["Weight %"] = df["weight_pct"].apply(lambda v: f"{v:.1f}%")
+    df["Opt Δ$"] = df["option_delta_dollars"].apply(
+        lambda v: _fmt_currency(v) if v > 0 else "—"
+    )
+    df["Hedge Ratio"] = df["hedge_ratio"].apply(
+        lambda v: f"{v:.1%}" if v > 0 else "—"
+    )
+    df["Puts"] = df["n_puts"].apply(lambda v: str(v) if v > 0 else "—")
+    df["⚠"] = df["high_risk"].apply(lambda v: "HIGH RISK" if v else "")
+
+    display_cols = ["symbol", "Equity Value", "Weight %", "Puts", "Opt Δ$", "Hedge Ratio", "Status", "⚠"]
+    present = [c for c in display_cols if c in df.columns]
+    display_df = df[present].rename(columns={"symbol": "Symbol"})
+
+    n_high_risk  = int(df["high_risk"].sum())
+    n_unhedged   = int((df["status"] == "unhedged").sum())
+    n_total      = len(df)
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Stocks", n_total)
+    col2.metric("Unhedged", n_unhedged, delta=None)
+    col3.metric("High Risk (>10% weight, unhedged)", n_high_risk)
+
+    st.dataframe(display_df, width="stretch", hide_index=True)
+    st.caption(
+        "Hedge Ratio = option delta-dollars / equity market value  ·  "
+        "✅ > 50%  ·  🟡 25–50%  ·  ⚠️ 10–25%  ·  ❌ < 10%"
+    )
 
 
 def _show_positions_table(df: pd.DataFrame, cols: list[str]) -> None:

@@ -8,7 +8,13 @@ from .config import get_ib_config
 from .connection import connect_ib
 from .data_pull import get_positions_frames as _get_positions_frames
 from .greeks import fetch_greeks
-from .metrics import add_concentration_metrics, add_dte, build_portfolio_summary
+from .metrics import (
+    add_concentration_metrics,
+    add_dte,
+    add_hedge_coverage,
+    build_crash_scenarios,
+    build_portfolio_summary,
+)
 from .safe_ib import SafeIB
 
 
@@ -30,22 +36,27 @@ def _get_ib() -> SafeIB:
     return _ib_client
 
 
-def get_portfolio_frames() -> Tuple[pd.DataFrame, pd.DataFrame, Dict[str, Any]]:
+def get_portfolio_frames() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, Dict[str, Any]]:
     """
     Public, read-only facade for the Streamlit app and other callers.
 
-    Returns (stocks_df, options_df, summary) where summary is a dict of
-    portfolio-level metrics (total values, options_book_pct, DTE flags, etc.).
+    Returns (stocks_df, options_df, hedge_df, crash_df, summary) where:
+        stocks_df  — equity positions with concentration metrics
+        options_df — option positions with Greeks, DTE
+        hedge_df   — one row per stock: hedge ratio, status, high-risk flag
+        crash_df   — one row per scenario: stock/option/net P&L
+        summary    — portfolio-level metrics dict
     No caller ever receives a raw IB client.
     """
-    ib = _get_ib()
+    ib  = _get_ib()
+    cfg = get_ib_config()
+
     stocks_df, options_df = _get_positions_frames(ib)
 
     if not stocks_df.empty:
         stocks_df = add_concentration_metrics(stocks_df)
 
     if not options_df.empty:
-        cfg = get_ib_config()
         options_df = add_dte(options_df)
         options_df = fetch_greeks(
             ib, options_df, stocks_df,
@@ -53,8 +64,14 @@ def get_portfolio_frames() -> Tuple[pd.DataFrame, pd.DataFrame, Dict[str, Any]]:
             max_rows=cfg.max_options_greeks,
         )
 
-    summary = build_portfolio_summary(stocks_df, options_df)
+    summary   = build_portfolio_summary(stocks_df, options_df)
+    hedge_df  = add_hedge_coverage(stocks_df, options_df)
+    crash_df  = build_crash_scenarios(
+        stocks_df, options_df,
+        cfg.crash_scenarios,
+        summary["total_portfolio_value"],
+    )
 
-    return stocks_df, options_df, summary
+    return stocks_df, options_df, hedge_df, crash_df, summary
 
 

@@ -120,6 +120,210 @@ def build_portfolio_summary(
     }
 
 
+# ── Hedge Coverage ─────────────────────────────────────────────────────────────
+
+def add_hedge_coverage(
+    stocks_df: pd.DataFrame,
+    options_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Compute hedge coverage ratio for every stock position (§7.2).
+
+    For each stock, find all PUT options where underlying == stock.symbol and sum:
+        option_delta_dollars = sum(abs(delta) * multiplier * qty * undPrice)
+
+        hedge_ratio = option_delta_dollars / stock.market_value
+
+    Classification:
+        < 0.10          → "unhedged"
+        0.10 – 0.25     → "light"
+        0.25 – 0.50     → "partial"
+        > 0.50          → "hedged"
+
+    HIGH RISK flag: weight_pct > 10% AND hedge_ratio < 0.10
+
+    Returns a DataFrame with one row per stock:
+        symbol | equity_value | weight_pct | hedge_ratio |
+        option_delta_dollars | n_puts | status | high_risk
+    """
+    if stocks_df.empty:
+        return pd.DataFrame()
+
+    # Build a lookup: stock symbol → current_price (fallback when undPrice is missing)
+    price_lookup = {}
+    if "current_price" in stocks_df.columns:
+        price_lookup = dict(
+            zip(stocks_df["symbol"], pd.to_numeric(stocks_df["current_price"], errors="coerce"))
+        )
+
+    # Pre-filter to puts only, coerce numeric columns once
+    puts_df = pd.DataFrame()
+    if not options_df.empty and "put_call" in options_df.columns:
+        puts_df = options_df[
+            options_df["put_call"].str.strip().str.upper().str.startswith("P")
+        ].copy()
+        puts_df["delta_num"]      = pd.to_numeric(puts_df.get("delta"), errors="coerce")
+        puts_df["multiplier_num"] = pd.to_numeric(puts_df.get("multiplier", 100), errors="coerce").fillna(100)
+        puts_df["qty_num"]        = pd.to_numeric(puts_df.get("quantity"), errors="coerce").fillna(0)
+        puts_df["und_price_num"]  = pd.to_numeric(puts_df.get("und_price"), errors="coerce")
+
+    rows = []
+    for _, stock in stocks_df.iterrows():
+        sym          = stock["symbol"]
+        mkt_val      = float(stock.get("market_value") or 0)
+        weight_pct   = float(stock.get("weight_pct") or 0)
+
+        opt_delta_dollars = 0.0
+        n_puts = 0
+
+        if not puts_df.empty and "underlying" in puts_df.columns:
+            matching = puts_df[puts_df["underlying"] == sym]
+            n_puts = len(matching)
+
+            for _, opt in matching.iterrows():
+                delta   = opt["delta_num"]
+                mult    = opt["multiplier_num"]
+                qty     = opt["qty_num"]
+                und_p   = opt["und_price_num"]
+
+                if pd.isna(delta):
+                    continue
+                # und_price from modelGreeks is preferred; fall back to stock's current price
+                if pd.isna(und_p) or und_p <= 0:
+                    und_p = price_lookup.get(sym, 0.0) or 0.0
+
+                opt_delta_dollars += abs(delta) * mult * qty * und_p
+
+        hedge_ratio = (opt_delta_dollars / mkt_val) if mkt_val > 0 else 0.0
+
+        if hedge_ratio >= 0.50:
+            status = "hedged"
+        elif hedge_ratio >= 0.25:
+            status = "partial"
+        elif hedge_ratio >= 0.10:
+            status = "light"
+        else:
+            status = "unhedged"
+
+        high_risk = (weight_pct > 10) and (hedge_ratio < 0.10)
+
+        rows.append({
+            "symbol":               sym,
+            "equity_value":         mkt_val,
+            "weight_pct":           round(weight_pct, 2),
+            "n_puts":               n_puts,
+            "option_delta_dollars": round(opt_delta_dollars, 0),
+            "hedge_ratio":          round(hedge_ratio, 4),
+            "status":               status,
+            "high_risk":            high_risk,
+        })
+
+    hedge_df = pd.DataFrame(rows)
+
+    # Sort: high-risk first, then unhedged, then by weight descending
+    status_order = {"unhedged": 0, "light": 1, "partial": 2, "hedged": 3}
+    hedge_df["_sort_status"] = hedge_df["status"].map(status_order)
+    hedge_df = hedge_df.sort_values(
+        ["high_risk", "_sort_status", "weight_pct"],
+        ascending=[False, True, False],
+    ).drop(columns=["_sort_status"]).reset_index(drop=True)
+
+    return hedge_df
+
+
+# ── Crash Scenario P&L ────────────────────────────────────────────────────────
+
+def build_crash_scenarios(
+    stocks_df: pd.DataFrame,
+    options_df: pd.DataFrame,
+    scenarios: list,
+    total_portfolio_value: float,
+) -> pd.DataFrame:
+    """
+    §7.4 — Crash Scenario P&L using delta + gamma approximation.
+
+    For each scenario (a fractional equity move, e.g. -0.30 for -30%):
+
+    Stocks (delta = 1):
+        stock_pnl = sum(market_value) * scenario_pct
+
+    Options (Taylor expansion — first two terms):
+        For each option:
+            dS = undPrice * scenario_pct
+            pnl = (delta * dS  +  0.5 * gamma * dS²)  *  multiplier * qty
+
+    undPrice preference: IB modelGreeks undPrice → stocks_df current_price fallback.
+
+    Returns a DataFrame (one row per scenario) with columns:
+        scenario_pct  — float, e.g. -0.30
+        stock_pnl     — total equity P&L ($)
+        options_pnl   — total options P&L ($) from delta+gamma
+        net_pnl       — stock_pnl + options_pnl
+        net_pct       — net_pnl / total_portfolio_value * 100
+    """
+    # Underlying price lookup: symbol → current stock price from portfolio
+    price_lookup: dict = {}
+    if not stocks_df.empty and "current_price" in stocks_df.columns:
+        price_lookup = dict(
+            zip(
+                stocks_df["symbol"],
+                pd.to_numeric(stocks_df["current_price"], errors="coerce"),
+            )
+        )
+
+    total_equity = float(stocks_df["market_value"].sum()) if not stocks_df.empty else 0.0
+
+    # Pre-extract option parameters once, skip rows missing critical values
+    opt_params = []
+    if not options_df.empty:
+        for _, opt in options_df.iterrows():
+            delta = pd.to_numeric(opt.get("delta"), errors="coerce")
+            gamma = pd.to_numeric(opt.get("gamma"), errors="coerce")
+            mult  = pd.to_numeric(opt.get("multiplier", 100), errors="coerce")
+            qty   = pd.to_numeric(opt.get("quantity", 0), errors="coerce")
+            und_p = pd.to_numeric(opt.get("und_price"), errors="coerce")
+
+            if pd.isna(delta):
+                continue  # no Greeks at all — skip
+
+            mult  = mult  if not pd.isna(mult)  else 100.0
+            qty   = qty   if not pd.isna(qty)   else 0.0
+            gamma = gamma if not pd.isna(gamma) else 0.0
+
+            # Resolve underlying price
+            if pd.isna(und_p) or und_p <= 0:
+                underlying = opt.get("underlying") or opt.get("symbol")
+                und_p = float(price_lookup.get(underlying) or 0.0)
+
+            if und_p <= 0:
+                continue  # can't compute dS without a price
+
+            opt_params.append((float(delta), float(gamma), float(mult), float(qty), float(und_p)))
+
+    rows = []
+    for pct in sorted(scenarios):
+        stock_pnl = total_equity * pct
+
+        options_pnl = 0.0
+        for delta, gamma, mult, qty, und_p in opt_params:
+            dS           = und_p * pct
+            option_pnl   = (delta * dS + 0.5 * gamma * dS ** 2) * mult * qty
+            options_pnl += option_pnl
+
+        net_pnl = stock_pnl + options_pnl
+        net_pct = (net_pnl / total_portfolio_value * 100) if total_portfolio_value > 0 else 0.0
+
+        rows.append({
+            "scenario_pct": pct,
+            "stock_pnl":    round(stock_pnl,    0),
+            "options_pnl":  round(options_pnl,  0),
+            "net_pnl":      round(net_pnl,       0),
+            "net_pct":      round(net_pct,        2),
+        })
+
+    return pd.DataFrame(rows)
+
+
 # ── Concentration ──────────────────────────────────────────────────────────────
 
 def add_concentration_metrics(stocks_df: pd.DataFrame) -> pd.DataFrame:

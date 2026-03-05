@@ -110,10 +110,24 @@ def _bs_greeks(
 # ── Contract helpers ───────────────────────────────────────────────────────────
 
 def _build_option_contract(row: pd.Series) -> Optional[object]:
+    """
+    Build an Option contract for reqMktData.
+
+    Prefers the conId stored in the row (populated from PortfolioItem.contract.conId)
+    so that qualifyContracts is never needed. Falls back to symbol+expiry+strike
+    construction for any row that lacks a conId.
+    """
     try:
+        con_id = row.get("con_id")
+        mult   = str(row.get("multiplier", "100")).strip() or "100"
+
+        if con_id and int(con_id) > 0:
+            # Already known to IB — no qualification needed.
+            return Option(conId=int(con_id), exchange="SMART", multiplier=mult)
+
+        # Fallback: build from symbology (requires qualifyContracts before use).
         expiry = str(row["expiry"]).strip()[:8]
         right  = str(row["put_call"]).strip().upper()[0]
-        mult   = str(row.get("multiplier", "100")).strip() or "100"
         return Option(
             symbol=row["symbol"],
             lastTradeDateOrContractMonth=expiry,
@@ -250,8 +264,6 @@ def fetch_greeks(
     greeks_rows: list[dict] = []
     total = len(df)
 
-    # Qualify contracts in one batch only when IB path is needed.
-    qual_map: dict = {}
     if use_ib:
         # Request 15-minute delayed data — free for all IBKR accounts, no subscription needed.
         # Must be called before any reqMktData. IB will automatically upgrade to live data
@@ -261,20 +273,6 @@ def fetch_greeks(
             logger.info("Market data type set to 3 (delayed)")
         except Exception as exc:
             logger.warning("Could not set delayed market data type: %s", exc)
-
-        contracts = [_build_option_contract(row) for _, row in df.head(max_rows).iterrows()]
-        valid = [c for c in contracts if c is not None]
-        if valid:
-            try:
-                qualified_list = ib.qualifyContracts(*valid)
-                qual_map = {
-                    (c.symbol, str(c.lastTradeDateOrContractMonth)[:8],
-                     float(c.strike), c.right): c
-                    for c in qualified_list
-                }
-                logger.info("Qualified %d/%d contracts", len(qualified_list), len(valid))
-            except Exception as exc:
-                logger.warning("Batch qualify failed: %s", exc)
 
     rows_list = list(df.iterrows())
 
@@ -291,16 +289,9 @@ def fetch_greeks(
                 slots.append((df_idx, row, None, None, False))
                 continue
 
-            raw_contract = _build_option_contract(row)
-            contract = None
-            if raw_contract is not None:
-                key = (
-                    raw_contract.symbol,
-                    str(raw_contract.lastTradeDateOrContractMonth)[:8],
-                    float(raw_contract.strike),
-                    raw_contract.right,
-                )
-                contract = qual_map.get(key)
+            # _build_option_contract uses conId directly when available — no
+            # qualifyContracts round-trip needed, which avoids the hang on refresh.
+            contract = _build_option_contract(row)
 
             ticker = None
             if contract is not None:
