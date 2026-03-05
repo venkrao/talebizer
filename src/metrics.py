@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pandas as pd
 
@@ -70,6 +70,7 @@ def build_portfolio_summary(
         options_unrealized_pnl  — sum of options unrealized_pnl
         n_options_expiring_90d  — count of options with DTE < 90
         earliest_dte            — smallest DTE across all options (None if no options)
+        daily_theta_burn        — sum(theta * multiplier * qty) across all options (None if no Greeks)
     """
     equity_val = float(stocks_df["market_value"].sum()) if not stocks_df.empty else 0.0
 
@@ -85,10 +86,22 @@ def build_portfolio_summary(
         else:
             n_urgent = 0
             earliest = None
+
+        # Theta burn: sum(theta * multiplier * quantity) — negative means daily cost
+        if "theta" in options_df.columns:
+            t = options_df.copy()
+            t["multiplier_num"] = pd.to_numeric(t.get("multiplier", 100), errors="coerce").fillna(100)
+            t["theta_num"]      = pd.to_numeric(t["theta"], errors="coerce")
+            t["qty_num"]        = pd.to_numeric(t["quantity"], errors="coerce").fillna(0)
+            t["theta_contrib"]  = t["theta_num"] * t["multiplier_num"] * t["qty_num"]
+            theta_burn: Optional[float] = float(t["theta_contrib"].sum()) if t["theta_num"].notna().any() else None
+        else:
+            theta_burn = None
     else:
         opt_cost = opt_mkt = opt_upnl = 0.0
         n_urgent = 0
         earliest = None
+        theta_burn = None
 
     total = equity_val + opt_mkt
     options_book_pct = (opt_cost / total * 100) if total > 0 else 0.0
@@ -103,6 +116,7 @@ def build_portfolio_summary(
         "options_unrealized_pnl":  opt_upnl,
         "n_options_expiring_90d":  n_urgent,
         "earliest_dte":            earliest,
+        "daily_theta_burn":        round(theta_burn, 2) if theta_burn is not None else None,
     }
 
 

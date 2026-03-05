@@ -4,8 +4,10 @@ from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
 
+from .config import get_ib_config
 from .connection import connect_ib
 from .data_pull import get_positions_frames as _get_positions_frames
+from .greeks import fetch_greeks
 from .metrics import add_concentration_metrics, add_dte, build_portfolio_summary
 from .safe_ib import SafeIB
 
@@ -43,7 +45,13 @@ def get_portfolio_frames() -> Tuple[pd.DataFrame, pd.DataFrame, Dict[str, Any]]:
         stocks_df = add_concentration_metrics(stocks_df)
 
     if not options_df.empty:
+        cfg = get_ib_config()
         options_df = add_dte(options_df)
+        options_df = fetch_greeks(
+            ib, options_df, stocks_df,
+            use_ib=cfg.greeks_use_ib,
+            max_rows=cfg.max_options_greeks,
+        )
 
     summary = build_portfolio_summary(stocks_df, options_df)
 

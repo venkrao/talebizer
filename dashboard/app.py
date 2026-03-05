@@ -34,6 +34,8 @@ OPTION_COLS = [
     "avg_cost", "cost_basis",
     "current_price", "market_value",
     "unrealized_pnl", "realized_pnl",
+    "delta", "gamma", "theta", "vega", "implied_vol", "und_price",
+    "greeks_source",
 ]
 
 FLAG_COLOURS = {"red": "#ef4444", "amber": "#f59e0b", "green": "#22c55e"}
@@ -136,6 +138,14 @@ def _show_overview_strip(s: dict) -> None:
         help=f"{s['n_options_expiring_90d']} option(s) expiring within 90 days.",
     )
 
+    # Second row: theta burn (only shown when Greeks are available)
+    theta = s.get("daily_theta_burn")
+    if theta is not None:
+        st.caption(
+            f"📉 Daily theta burn: **${theta:,.2f}** "
+            f"(cost of holding all options for one more day)"
+        )
+
     st.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 
@@ -173,13 +183,13 @@ def _show_concentration_heatmap(stocks_df: pd.DataFrame) -> None:
             annotation_position="top",
         )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption("🟢 < 10%  ·  🟡 10–25%  ·  🔴 > 25%")
 
 
 def _show_positions_table(df: pd.DataFrame, cols: list[str]) -> None:
     display_df = _prep_table(df, cols)
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="stretch")
 
 
 def _show_options_table(df: pd.DataFrame, cols: list[str]) -> None:
@@ -197,7 +207,7 @@ def _show_options_table(df: pd.DataFrame, cols: list[str]) -> None:
             ["⚠️" if f == "urgent" else ("🕐" if f == "expired" else "") for f in flag_map],
         )
 
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="stretch")
     st.caption("⚠️ = expiring within 90 days")
 
 
@@ -207,7 +217,8 @@ def _prep_table(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
     display_df = display_df[present_cols]
 
     for col in ["quantity", "avg_cost", "cost_basis", "current_price", "market_value",
-                "weight_pct", "unrealized_pnl", "realized_pnl", "strike", "dte"]:
+                "weight_pct", "unrealized_pnl", "realized_pnl", "strike", "dte",
+                "delta", "gamma", "theta", "vega", "implied_vol", "und_price"]:
         if col in display_df.columns:
             display_df[col] = pd.to_numeric(display_df[col], errors="coerce")
 
