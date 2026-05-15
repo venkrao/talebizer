@@ -57,15 +57,16 @@ def _portfolio_item_to_dict(item) -> dict:
         unrealized_pnl = (market_value or 0.0) - cost_basis
 
     base = {
-        "symbol": symbol,
-        "asset_class": asset_class,
-        "quantity": position,
-        "avg_cost": avg_cost,
-        "cost_basis": cost_basis,
+        "symbol":       symbol,
+        "asset_class":  asset_class,
+        "currency":     getattr(contract, "currency", "USD"),
+        "quantity":     position,
+        "avg_cost":     avg_cost,
+        "cost_basis":   cost_basis,
         "current_price": market_price,
         "market_value": market_value or 0.0,
         "unrealized_pnl": unrealized_pnl,
-        "realized_pnl": realized_pnl,
+        "realized_pnl":   realized_pnl,
     }
 
     if asset_class == "OPT":

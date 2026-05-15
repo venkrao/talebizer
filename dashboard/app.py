@@ -109,6 +109,12 @@ def main():
         _show_crash_scenario_matrix(crash_df)
         st.divider()
 
+    # ── Convexity Analysis ─────────────────────────────────────────────────────
+    if not options_df.empty and "taleb_score" in options_df.columns:
+        st.subheader("Convexity Analysis")
+        _show_convexity_table(options_df)
+        st.divider()
+
     # ── Raw positions tables ───────────────────────────────────────────────────
     col1, col2 = st.columns(2)
 
@@ -217,6 +223,98 @@ def _show_concentration_heatmap(stocks_df: pd.DataFrame) -> None:
 
     st.plotly_chart(fig, width="stretch")
     st.caption("🟢 < 10%  ·  🟡 10–25%  ·  🔴 > 25%")
+
+
+_SIGNAL_ICON = {
+    "HOLD":                                    "✅ HOLD",
+    "MONITOR":                                 "🔍 MONITOR",
+    "MONITOR — vol edge offsets low convexity": "🟡 MONITOR — high vol edge",
+    "SELL — expiring soon":                    "🔴 SELL — expiring soon",
+    "SELL — low convexity":                    "🔴 SELL — low convexity",
+}
+
+_SCORE_COLOUR = [
+    (80, "#22c55e"),   # green  — extreme
+    (60, "#86efac"),   # light green — strong
+    (30, "#f59e0b"),   # amber  — moderate
+    (0,  "#ef4444"),   # red    — weak
+]
+
+
+def _score_colour(score: int) -> str:
+    for threshold, colour in _SCORE_COLOUR:
+        if score >= threshold:
+            return colour
+    return _SCORE_COLOUR[-1][1]
+
+
+def _show_convexity_table(options_df: pd.DataFrame) -> None:
+    """Convexity Analysis section — one row per option, sorted by Taleb Score desc."""
+    df = options_df.copy()
+
+    # Summary bar above the table
+    has_rv  = df["realized_vol"].notna().any() if "realized_vol" in df.columns else False
+    n_hold  = int((df["signal"] == "HOLD").sum())   if "signal" in df.columns else 0
+    n_sell  = int(df["signal"].str.startswith("SELL").sum()) if "signal" in df.columns else 0
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Positions",        len(df))
+    m2.metric("HOLD signals",     n_hold)
+    m3.metric("SELL signals",     n_sell)
+
+    if not has_rv:
+        st.info(
+            "Realized volatility data unavailable — convexity ratios require it. "
+            "Ensure TWS has market data history enabled for your option underlyings."
+        )
+
+    # Build display frame
+    display = pd.DataFrame()
+    display["Symbol"]   = df["symbol"]
+    display["P/C"]      = df.get("put_call", "")
+    display["Strike"]   = pd.to_numeric(df.get("strike"),  errors="coerce")
+    display["Expiry"]   = df.get("expiry", "")
+    display["DTE"]      = pd.to_numeric(df.get("dte"),     errors="coerce")
+    display["Price"]    = pd.to_numeric(df.get("current_price"), errors="coerce")
+    display["Intrinsic"] = pd.to_numeric(df.get("intrinsic_value"), errors="coerce")
+    display["Time Val"] = pd.to_numeric(df.get("time_value"),       errors="coerce")
+    display["IV"]       = (pd.to_numeric(df.get("implied_vol"),  errors="coerce") * 100).round(1)
+    display["RV (30d)"] = (pd.to_numeric(df.get("realized_vol"), errors="coerce") * 100).round(1)
+    display["Vol Edge"] = (pd.to_numeric(df.get("vol_edge"),     errors="coerce") * 100).round(1)
+    display["2σ Conv"]  = pd.to_numeric(df.get("convexity_2s"),  errors="coerce").round(1)
+    display["4σ Conv"]  = pd.to_numeric(df.get("convexity_4s"),  errors="coerce").round(1)
+    display["6σ Conv"]  = pd.to_numeric(df.get("convexity_6s"),  errors="coerce").round(1)
+    display["Score"]    = pd.to_numeric(df.get("taleb_score"),   errors="coerce")
+    display["Signal"]   = df.get("signal", "").map(_SIGNAL_ICON).fillna(df.get("signal", ""))
+
+    # Sort by Taleb Score descending (best opportunities first)
+    display = display.sort_values("Score", ascending=False)
+
+    def _style_score(val):
+        try:
+            return f"color: {_score_colour(int(val))}; font-weight: bold"
+        except (TypeError, ValueError):
+            return ""
+
+    def _style_vol_edge(val):
+        try:
+            v = float(val)
+            return "color: #22c55e" if v > 0 else ("color: #ef4444" if v < -5 else "")
+        except (TypeError, ValueError):
+            return ""
+
+    styled = (
+        display.style
+        .map(_style_score,    subset=["Score"])
+        .map(_style_vol_edge, subset=["Vol Edge"])
+    )
+
+    st.dataframe(styled, width="stretch", hide_index=True)
+    st.caption(
+        "**Taleb Score** = Convexity (0–50) + Vol Edge (0–30) + Time (0–20)  ·  "
+        "**4σ Conv** = tail payoff / premium at a 4σ move using realised vol  ·  "
+        "**Vol Edge** = RV − IV (positive = options may be underpriced)"
+    )
 
 
 def _show_crash_scenario_matrix(crash_df: pd.DataFrame) -> None:
