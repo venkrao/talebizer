@@ -1,12 +1,20 @@
-## Talebizer - Phase 1 Minimal App
+## Talebizer
 
-This is a **minimal implementation** of the Phase 1 spec: a local Python app that connects to Interactive Brokers (IBKR) via `ib_async`, pulls live positions, and shows them in a simple Streamlit dashboard so you can compare them with your actual IBKR portfolio.
+**Talebizer** is a **local, read-only** portfolio dashboard for **Interactive Brokers (IBKR)**. It connects through **TWS** or **IB Gateway**, pulls a consolidated snapshot of your positions, and turns it into **risk-oriented views**—not predictions and never trades.
 
-This version intentionally skips metrics, charts, and CSV export. It focuses only on:
+The philosophy is simple: brokerage UIs show balances and line items well, but **cross-cutting risk** (concentration, how puts couple to equity, what a crude shock implies, whether option premium buys meaningful convexity) is easy to scatter or eyeball wrong. Talebizer exists so you can reason about **tail asymmetry and discipline** on your own machine: **one refresh → one snapshot → several complementary lenses**, with **no order placement** by design (`SafeIB` blocks trading APIs).
 
-- **Connecting to IBKR** (TWS or IB Gateway must be running)
-- **Pulling positions via `ib.positions()`**
-- **Displaying stocks and options in a simple UI**
+What it emphasizes:
+
+- **Concentration** — equity weights and concentration flags.
+- **Hedge coverage** — put delta-dollars versus equity market value per underlying (day-to-day delta coupling; deep OTM tails need interpretation alongside other views).
+- **Crash scenarios** — a **Δ–Γ** stylized shock table for stocks + options (approximation; not a full tail model).
+- **Convexity / “Taleb” lens** — realized vs implied vol, stylized tail payoff per premium, and a compact score / signal hints (structure vs premium, not forecast accuracy).
+- **Optional chat** — read-only Q&A over the same snapshot (LangGraph + optional local **Ollama** for intent), still **no execution**.
+
+What it is **not**: not a broker, not a cloud service, not a substitute for IBKR’s own risk systems—and not a claim about calibrated probabilities for rare events.
+
+Specifications and design notes live under **`specs/`** (e.g. phase 1, convexity, chat MVP). For architecture diagrams, module map, and operational caveats, see **`thewhy.md`**.
 
 ### 1. Setup
 
@@ -38,13 +46,7 @@ From the project root:
 streamlit run dashboard/app.py
 ```
 
-The app will:
-
-- Connect to IBKR using `ib_async`.
-- Pull positions via `ib.positions()`.
-- Split them into **stocks** and **options** and display simple tables so you can visually compare them to what you see in TWS.
-
-If there is a connection or API error, the app will show a clear error message in the UI.
+The app loads a snapshot (overview metrics, concentration chart, hedge and crash tables, convexity view when data allows, raw stock/option tables, and the optional chat column). If IBKR is unreachable, you’ll see a clear error in the UI.
 
 ### Portfolio chat + local Ollama (optional)
 
