@@ -14,12 +14,19 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.ib_service import get_portfolio_frames
 
+if str(ROOT_DIR / "dashboard") not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR / "dashboard"))
+
+from chat_panel import render_chat_panel
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 st.set_page_config(page_title="Talebizer – Risk Dashboard", layout="wide")
-st.title("Talebizer – Portfolio Risk Dashboard")
+
+# Main dashboard vs copilot-style chat column (~72% / ~28%).
+_MAIN_CHAT_SPLIT = (11, 5)
 
 STOCK_COLS = [
     "symbol", "quantity",
@@ -46,6 +53,7 @@ def _fmt_currency(val: float, decimals: int = 0) -> str:
 
 
 def main():
+    st.title("Talebizer – Portfolio Risk Dashboard")
     refresh_clicked = st.button("Refresh positions")
 
     # Load data on first visit or when Refresh is explicitly clicked.
@@ -81,56 +89,61 @@ def main():
         crash_df   = st.session_state["crash_df"]
         summary    = st.session_state["summary"]
 
-    if stocks_df.empty and options_df.empty:
-        st.warning("No positions returned from IBKR.")
-        return
+    main_col, chat_col = st.columns(_MAIN_CHAT_SPLIT, gap="large")
 
-    # ── §8.1 Portfolio Overview strip ─────────────────────────────────────────
-    _show_overview_strip(summary)
-
-    st.divider()
-
-    # ── §8.2 Concentration Heatmap ─────────────────────────────────────────────
-    if not stocks_df.empty and "weight_pct" in stocks_df.columns:
-        with st.expander("Concentration Heatmap", expanded=False):
-            _show_concentration_heatmap(stocks_df)
-
-    st.divider()
-
-    # ── §8.3 Hedge Coverage Table ──────────────────────────────────────────────
-    if not hedge_df.empty:
-        st.subheader("Hedge Coverage")
-        _show_hedge_coverage_table(hedge_df)
-        st.divider()
-
-    # ── §8.4 Crash Scenario Matrix ─────────────────────────────────────────────
-    if not crash_df.empty:
-        st.subheader("Crash Scenario Matrix")
-        _show_crash_scenario_matrix(crash_df)
-        st.divider()
-
-    # ── Convexity Analysis ─────────────────────────────────────────────────────
-    if not options_df.empty and "taleb_score" in options_df.columns:
-        st.subheader("Convexity Analysis")
-        _show_convexity_table(options_df)
-        st.divider()
-
-    # ── Raw positions tables ───────────────────────────────────────────────────
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("Stock Positions (STK)")
-        if stocks_df.empty:
-            st.write("No stock positions.")
+    with main_col:
+        if stocks_df.empty and options_df.empty:
+            st.warning("No positions returned from IBKR.")
         else:
-            _show_positions_table(stocks_df, STOCK_COLS)
+            # ── §8.1 Portfolio Overview strip ─────────────────────────────────────────
+            _show_overview_strip(summary)
 
-    with col2:
-        st.subheader("Option Positions (OPT)")
-        if options_df.empty:
-            st.write("No option positions.")
-        else:
-            _show_options_table(options_df, OPTION_COLS)
+            st.divider()
+
+            # ── §8.2 Concentration Heatmap ─────────────────────────────────────────────
+            if not stocks_df.empty and "weight_pct" in stocks_df.columns:
+                with st.expander("Concentration Heatmap", expanded=False):
+                    _show_concentration_heatmap(stocks_df)
+
+            st.divider()
+
+            # ── §8.3 Hedge Coverage Table ──────────────────────────────────────────────
+            if not hedge_df.empty:
+                st.subheader("Hedge Coverage")
+                _show_hedge_coverage_table(hedge_df)
+                st.divider()
+
+            # ── §8.4 Crash Scenario Matrix ─────────────────────────────────────────────
+            if not crash_df.empty:
+                st.subheader("Crash Scenario Matrix")
+                _show_crash_scenario_matrix(crash_df)
+                st.divider()
+
+            # ── Convexity Analysis ─────────────────────────────────────────────────────
+            if not options_df.empty and "taleb_score" in options_df.columns:
+                st.subheader("Convexity Analysis")
+                _show_convexity_table(options_df)
+                st.divider()
+
+            # ── Raw positions tables ───────────────────────────────────────────────────
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.subheader("Stock Positions (STK)")
+                if stocks_df.empty:
+                    st.write("No stock positions.")
+                else:
+                    _show_positions_table(stocks_df, STOCK_COLS)
+
+            with col2:
+                st.subheader("Option Positions (OPT)")
+                if options_df.empty:
+                    st.write("No option positions.")
+                else:
+                    _show_options_table(options_df, OPTION_COLS)
+
+    with chat_col:
+        render_chat_panel()
 
 
 def _show_overview_strip(s: dict) -> None:
@@ -453,5 +466,6 @@ def _prep_table(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
     return display_df
 
 
-if __name__ == "__main__":
-    main()
+# Streamlit executes this file on each rerun with __name__ != "__main__", so a guarded
+# entrypoint would never run under `streamlit run`. Drive the UI from main() directly.
+main()

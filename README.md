@@ -46,3 +46,15 @@ The app will:
 
 If there is a connection or API error, the app will show a clear error message in the UI.
 
+### Portfolio chat + local Ollama (optional)
+
+The dashboard includes a **read-only** chat layer. Set these in `.env` if you use intent fallback via Ollama:
+
+```bash
+CHAT_OLLAMA_ENABLED=true
+CHAT_OLLAMA_HOST=http://127.0.0.1:11434
+CHAT_OLLAMA_MODEL=your-model-tag   # must match `ollama list` exactly, e.g. llama3.2:latest
+```
+
+If you see **`HTTP 404`** from **`/api/chat`**, align **`CHAT_OLLAMA_MODEL`** with an installed tag (`ollama list`). The client uses **`POST /api/chat` only** (some Ollama builds no longer expose **`/api/generate`**). For **thinking** models (e.g. Qwen 3), intent classification requests **`think: false`** and **`format: json`** so the reply lands in **`message.content`**.
+

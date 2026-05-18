@@ -5,4 +5,5 @@ streamlit>=1.32
 plotly>=5.20
 python-dotenv
 schedule
+langgraph>=0.2.0
 
