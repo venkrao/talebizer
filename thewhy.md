@@ -34,9 +34,9 @@ Specifications guiding behaviour live in `phase1_spec.md`, `convexity_spec.md`, 
 |--------|--------|
 | Language | Python ≥ 3.11 |
 | IB API wrapper | **`ib_async`** (async core with synchronous helpers such as `ib.connect`, `ib.sleep`) |
-| UI | **Streamlit** (`dashboard/app.py`) |
+| UI | **Desktop**: **React + Vite** (`desktop/`) calling **FastAPI** (`backend/`) |
 | Tables / numerics | **pandas**, **numpy** |
-| Charts | **plotly** (concentration bars, crash scenario bars) |
+| Charts | **Recharts** in the desktop SPA (concentration, crash bars); backend serves JSON frames |
 | Config | **`python-dotenv`** → `.env` (never commit secrets) |
 
 ---
@@ -75,7 +75,7 @@ Specifications guiding behaviour live in `phase1_spec.md`, `convexity_spec.md`, 
    metrics.add_hedge_coverage(), build_crash_scenarios(), build_portfolio_summary()
         │
         ▼
-   Streamlit session cache + tables / charts
+   FastAPI snapshot (`backend/`) + React desktop UI (`desktop/`)
 ```
 
 The **only** supported entry point for the UI is **`src/ib_service.py:get_portfolio_frames()`**, which returns `(stocks_df, options_df, hedge_df, crash_df, summary)` so callers never hold a raw IB client.
@@ -94,7 +94,8 @@ The **only** supported entry point for the UI is **`src/ib_service.py:get_portfo
 | `src/metrics.py` | Concentration, DTE, hedge ratios, crash Δ–Γ matrix, portfolio summary (theta burn, options book %, …) |
 | `src/convexity.py` | Tail scenarios from **realized vol**, convexity ratios, vol edge, deterministic **Taleb score**, signals |
 | `src/ib_service.py` | Singleton-ish IB handle, orchestrates pipeline + **realized vol cache** + historical fetch fixes |
-| `dashboard/app.py` | Overview strip, collapsible concentration heatmap, hedge table, crash matrix, convexity table, raw position tables |
+| `backend/` | **FastAPI** — portfolio refresh, frames JSON, chat orchestration (loopback only) |
+| `desktop/` | **React + TypeScript** SPA — overview, analytics panels, positions tables, chat |
 
 ---
 

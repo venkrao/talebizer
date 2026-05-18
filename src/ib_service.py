@@ -166,7 +166,7 @@ def _get_realized_vols(
 
 def get_portfolio_frames() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, Dict[str, Any]]:
     """
-    Public, read-only facade for the Streamlit app and other callers.
+    Public, read-only facade for the FastAPI/desktop UI and other callers.
 
     Returns (stocks_df, options_df, hedge_df, crash_df, summary) where:
         stocks_df  — equity positions with concentration metrics

@@ -136,8 +136,12 @@ def invoke_chat_graph(
 ) -> Dict[str, Any]:
     graph = build_chat_graph(stocks_df, options_df, hedge_df, crash_df, summary)
     out = graph.invoke({"user_question": question})
+    tr = out.get("tool_result") or {}
+    lim = tr.get("limitation_note") if isinstance(tr, dict) else None
     return {
         "intent": out.get("intent"),
         "tool_result": out.get("tool_result"),
         "final_response": out.get("final_response"),
+        "snapshot_timestamp": out.get("snapshot_timestamp"),
+        "limitation_note": lim,
     }

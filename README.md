@@ -38,19 +38,18 @@ BASE_CURRENCY=USD
    - Enable API access.
    - Ensure the port matches `IB_PORT`.
 
-### 2. Running the Dashboard
+### 2. Running the app
 
-From the project root:
+The supported UI is the **desktop shell** (**React + Vite** under **`desktop/`**) talking to the **FastAPI** layer under **`backend/`** (same analytics core as `src/ib_service.py`).
 
-```bash
-streamlit run dashboard/app.py
-```
+1. Start the API on loopback — see **[`backend/README.md`](backend/README.md)** (`uvicorn`).
+2. From **`desktop/`**: `npm install` then **`npm run dev`** (default **http://localhost:5173**).
 
-The app loads a snapshot (overview metrics, concentration chart, hedge and crash tables, convexity view when data allows, raw stock/option tables, and the optional chat column). If IBKR is unreachable, you’ll see a clear error in the UI.
+Environment variables for IBKR and optional Ollama apply to the Python backend; **`desktop/README.md`** covers **`VITE_API_BASE_URL`**.
 
 ### Portfolio chat + local Ollama (optional)
 
-The dashboard includes a **read-only** chat layer. Set these in `.env` if you use intent fallback via Ollama:
+The app includes a **read-only** chat layer over the loaded snapshot. Set these in `.env` if you use intent fallback via Ollama:
 
 ```bash
 CHAT_OLLAMA_ENABLED=true
