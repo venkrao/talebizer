@@ -33,7 +33,7 @@ Open **http://127.0.0.1:5173** (Vite default).
 
 - **Portfolio** — overview metrics, **Refresh portfolio (IBKR)**, chat over the snapshot.
 - **System** — API base, Python/environment, IBKR snapshot/load diagnostics, Ollama (`Reload diagnostics`).
-
+- **Theme toggle** (header) — switches dark/light; preference is stored in `localStorage` under `talebizer-theme` (`dark` or `light`). An older `system` value is migrated once to match your OS appearance.
 ## Production build
 
 ```bash

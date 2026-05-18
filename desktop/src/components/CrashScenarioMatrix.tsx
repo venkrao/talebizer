@@ -12,6 +12,8 @@ import {
   YAxis,
 } from "recharts";
 import { fmtCurrency } from "../lib/formatCurrency";
+import { chartPalettes } from "../theme/chartPalette";
+import { useTheme } from "../theme/ThemeContext";
 import { CollapsibleSection } from "./CollapsibleSection";
 
 type CrashRow = {
@@ -59,6 +61,9 @@ export function CrashScenarioMatrix({
 }: {
   crashRows: Record<string, unknown>[];
 }) {
+  const { resolved } = useTheme();
+  const cp = chartPalettes[resolved];
+
   const data = useMemo(() => parseCrashRows(crashRows), [crashRows]);
 
   if (data.length === 0) return null;
@@ -88,15 +93,15 @@ export function CrashScenarioMatrix({
 
   return (
     <CollapsibleSection title="Crash scenario matrix">
-      <div className="mb-4 overflow-x-auto rounded-md border border-zinc-800">
+      <div className="mb-4 overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
         <table className="w-max min-w-full border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-zinc-800 bg-zinc-950/80">
+            <tr className="border-b border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950/80">
               {displayCols.map((c) => (
                 <th
                   key={c.key}
                   scope="col"
-                  className="whitespace-nowrap px-2 py-2 font-semibold text-zinc-400"
+                  className="whitespace-nowrap px-2 py-2 font-semibold text-zinc-600 dark:text-zinc-400"
                 >
                   {c.header}
                 </th>
@@ -107,18 +112,18 @@ export function CrashScenarioMatrix({
             {tableRows.map((row, ri) => (
               <tr
                 key={`${row.scenario}-${ri}`}
-                className="border-b border-zinc-800/70 odd:bg-zinc-950/40"
+                className="border-b border-zinc-200/90 odd:bg-zinc-50 dark:border-zinc-800/70 dark:odd:bg-zinc-950/40"
               >
-                <td className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-200 tabular-nums">
+                <td className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-800 tabular-nums dark:text-zinc-200">
                   {row.scenario}
                 </td>
-                <td className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-200 tabular-nums">
+                <td className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-800 tabular-nums dark:text-zinc-200">
                   {row.stock}
                 </td>
-                <td className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-200 tabular-nums">
+                <td className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-800 tabular-nums dark:text-zinc-200">
                   {row.options}
                 </td>
-                <td className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-200 tabular-nums">
+                <td className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-800 tabular-nums dark:text-zinc-200">
                   {row.net}
                 </td>
                 <td
@@ -145,22 +150,22 @@ export function CrashScenarioMatrix({
             data={chartData}
             margin={{ left: 8, right: 12, top: 28, bottom: 8 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={cp.grid} vertical={false} />
             <XAxis
               dataKey="scenario"
-              stroke="#71717a"
-              tick={{ fill: "#a1a1aa", fontSize: 11 }}
+              stroke={cp.axisStroke}
+              tick={{ fill: cp.tickFill, fontSize: 11 }}
               label={{
                 value: "Scenario (equity move)",
                 position: "insideBottom",
                 offset: -2,
-                fill: "#71717a",
+                fill: cp.axisLabelFill,
                 fontSize: 11,
               }}
             />
             <YAxis
-              stroke="#71717a"
-              tick={{ fill: "#a1a1aa", fontSize: 11 }}
+              stroke={cp.axisStroke}
+              tick={{ fill: cp.tickFill, fontSize: 11 }}
               tickFormatter={(v) =>
                 typeof v === "number" ? `$${Math.round(v).toLocaleString("en-US")}` : String(v)
               }
@@ -168,19 +173,19 @@ export function CrashScenarioMatrix({
                 value: "Net P&L ($)",
                 angle: -90,
                 position: "insideLeft",
-                fill: "#71717a",
+                fill: cp.axisLabelFill,
                 fontSize: 11,
               }}
             />
             <Tooltip
-              cursor={{ fill: "rgba(39,39,42,0.35)" }}
+              cursor={{ fill: cp.cursorFill }}
               contentStyle={{
-                backgroundColor: "#18181b",
-                border: "1px solid #3f3f46",
+                backgroundColor: cp.tooltipBg,
+                border: `1px solid ${cp.tooltipBorder}`,
                 borderRadius: "6px",
                 fontSize: "12px",
               }}
-              labelStyle={{ color: "#e4e4e7" }}
+              labelStyle={{ color: cp.tooltipLabel }}
               formatter={(value: number) => [fmtCurrency(value, 0), "Net P&L"]}
             />
             <ReferenceLine y={0} stroke="rgba(150,150,150,0.5)" strokeDasharray="4 4" />
@@ -191,7 +196,7 @@ export function CrashScenarioMatrix({
               <LabelList
                 dataKey="net_pnl"
                 position="top"
-                fill="#d4d4d8"
+                fill={cp.barLabelFill}
                 fontSize={11}
                 formatter={(v: number) =>
                   Number.isFinite(v) ? `$${Math.round(v).toLocaleString("en-US")}` : ""

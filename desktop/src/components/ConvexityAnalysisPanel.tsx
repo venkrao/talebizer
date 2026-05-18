@@ -128,6 +128,11 @@ const COLUMNS = [
   "Signal",
 ] as const;
 
+const metricTile =
+  "rounded-md border border-zinc-200 bg-zinc-100/80 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/40";
+const metricValue =
+  "mt-1 text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50";
+
 /** Convexity analysis table — parity with options frame + `compute_convexity_metrics`. */
 export function ConvexityAnalysisPanel({
   optionsRows,
@@ -160,44 +165,42 @@ export function ConvexityAnalysisPanel({
   return (
     <CollapsibleSection title="Convexity analysis">
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2">
+        <div className={metricTile}>
           <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             Positions
           </div>
-          <div className="mt-1 text-xl font-semibold tabular-nums text-zinc-50">
-            {optionsRows.length}
-          </div>
+          <div className={metricValue}>{optionsRows.length}</div>
         </div>
-        <div className="rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2">
+        <div className={metricTile}>
           <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             HOLD signals
           </div>
-          <div className="mt-1 text-xl font-semibold tabular-nums text-zinc-50">{nHold}</div>
+          <div className={metricValue}>{nHold}</div>
         </div>
-        <div className="rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2">
+        <div className={metricTile}>
           <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             SELL signals
           </div>
-          <div className="mt-1 text-xl font-semibold tabular-nums text-zinc-50">{nSell}</div>
+          <div className={metricValue}>{nSell}</div>
         </div>
       </div>
 
       {!hasRv ? (
-        <div className="mb-4 rounded-md border border-sky-900/50 bg-sky-950/25 px-3 py-2 text-sm text-sky-100/95">
+        <div className="mb-4 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950 dark:border-sky-900/50 dark:bg-sky-950/25 dark:text-sky-100/95">
           Realized volatility data unavailable — convexity ratios require it. Ensure TWS has
           market data history enabled for your option underlyings.
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-md border border-zinc-800">
+      <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
         <table className="w-max min-w-full border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-zinc-800 bg-zinc-950/80">
+            <tr className="border-b border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950/80">
               {COLUMNS.map((c) => (
                 <th
                   key={c}
                   scope="col"
-                  className="whitespace-nowrap px-2 py-2 font-semibold text-zinc-400"
+                  className="whitespace-nowrap px-2 py-2 font-semibold text-zinc-600 dark:text-zinc-400"
                 >
                   {c}
                 </th>
@@ -212,7 +215,7 @@ export function ConvexityAnalysisPanel({
               return (
                 <tr
                   key={`${row.Symbol}-${ri}`}
-                  className="border-b border-zinc-800/70 odd:bg-zinc-950/40"
+                  className="border-b border-zinc-200/90 odd:bg-zinc-50 dark:border-zinc-800/70 dark:odd:bg-zinc-950/40"
                 >
                   {COLUMNS.map((col) => {
                     const cell = row[col];
@@ -224,7 +227,7 @@ export function ConvexityAnalysisPanel({
                     return (
                       <td
                         key={col}
-                        className={`whitespace-nowrap px-2 py-1.5 font-mono text-zinc-200 tabular-nums ${
+                        className={`whitespace-nowrap px-2 py-1.5 font-mono text-zinc-800 tabular-nums dark:text-zinc-200 ${
                           isScore ? "text-sm font-bold" : ""
                         }`}
                         style={colour ? { color: colour } : undefined}
@@ -241,11 +244,11 @@ export function ConvexityAnalysisPanel({
       </div>
 
       <p className="mt-3 text-[11px] text-zinc-500">
-        <span className="font-semibold text-zinc-400">Taleb Score</span> = Convexity (0–50) +
+        <span className="font-semibold text-zinc-600 dark:text-zinc-400">Taleb Score</span> = Convexity (0–50) +
         Vol Edge (0–30) + Time (0–20) ·{" "}
-        <span className="font-semibold text-zinc-400">4σ Conv</span> = tail payoff / premium at a
+        <span className="font-semibold text-zinc-600 dark:text-zinc-400">4σ Conv</span> = tail payoff / premium at a
         4σ move using realised vol ·{" "}
-        <span className="font-semibold text-zinc-400">Vol Edge</span> = RV − IV (positive =
+        <span className="font-semibold text-zinc-600 dark:text-zinc-400">Vol Edge</span> = RV − IV (positive =
         options may be underpriced)
       </p>
     </CollapsibleSection>

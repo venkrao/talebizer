@@ -30,6 +30,11 @@ function fmtPuts(v: unknown): string {
   return String(Math.round(n));
 }
 
+const metricTile =
+  "rounded-md border border-zinc-200 bg-zinc-100/80 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/40";
+const metricValue =
+  "mt-1 text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50";
+
 /** §8.3 — Hedge coverage table + metrics (Python `hedge_df` / IB service). */
 export function HedgeCoveragePanel({
   hedgeRows,
@@ -73,41 +78,35 @@ export function HedgeCoveragePanel({
   return (
     <CollapsibleSection title="Hedge coverage">
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2">
+        <div className={metricTile}>
           <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             Stocks
           </div>
-          <div className="mt-1 text-xl font-semibold tabular-nums text-zinc-50">
-            {nTotal}
-          </div>
+          <div className={metricValue}>{nTotal}</div>
         </div>
-        <div className="rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2">
+        <div className={metricTile}>
           <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             Unhedged
           </div>
-          <div className="mt-1 text-xl font-semibold tabular-nums text-zinc-50">
-            {nUnhedged}
-          </div>
+          <div className={metricValue}>{nUnhedged}</div>
         </div>
-        <div className="rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2">
+        <div className={metricTile}>
           <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             High risk (&gt;10% weight, unhedged)
           </div>
-          <div className="mt-1 text-xl font-semibold tabular-nums text-zinc-50">
-            {nHighRisk}
-          </div>
+          <div className={metricValue}>{nHighRisk}</div>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-zinc-800">
+      <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
         <table className="w-max min-w-full border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-zinc-800 bg-zinc-950/80">
+            <tr className="border-b border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950/80">
               {columns.map((c) => (
                 <th
                   key={c}
                   scope="col"
-                  className="whitespace-nowrap px-2 py-2 font-semibold text-zinc-400"
+                  className="whitespace-nowrap px-2 py-2 font-semibold text-zinc-600 dark:text-zinc-400"
                 >
                   {c}
                 </th>
@@ -118,12 +117,12 @@ export function HedgeCoveragePanel({
             {tableRows.map((row, ri) => (
               <tr
                 key={`${row.Symbol}-${ri}`}
-                className="border-b border-zinc-800/70 odd:bg-zinc-950/40"
+                className="border-b border-zinc-200/90 odd:bg-zinc-50 dark:border-zinc-800/70 dark:odd:bg-zinc-950/40"
               >
                 {columns.map((c) => (
                   <td
                     key={c}
-                    className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-200 tabular-nums"
+                    className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-800 tabular-nums dark:text-zinc-200"
                   >
                     {row[c as keyof typeof row]}
                   </td>

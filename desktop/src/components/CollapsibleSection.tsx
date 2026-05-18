@@ -9,15 +9,17 @@ export function CollapsibleSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-4 shadow-sm">
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
       <details className="group">
-        <summary className="cursor-pointer list-none text-sm font-semibold text-zinc-200 [&::-webkit-details-marker]:hidden">
-          <span className="mr-2 inline-block text-zinc-500 transition-transform group-open:rotate-90">
+        <summary className="cursor-pointer list-none text-sm font-semibold text-zinc-800 [&::-webkit-details-marker]:hidden dark:text-zinc-200">
+          <span className="mr-2 inline-block text-zinc-400 transition-transform group-open:rotate-90 dark:text-zinc-500">
             ▸
           </span>
           {title}
         </summary>
-        <div className="mt-4 border-t border-zinc-800/80 pt-4">{children}</div>
+        <div className="mt-4 border-t border-zinc-200/90 pt-4 dark:border-zinc-800/80">
+          {children}
+        </div>
       </details>
     </section>
   );

@@ -12,6 +12,8 @@ import {
   YAxis,
 } from "recharts";
 import { CollapsibleSection } from "./CollapsibleSection";
+import { chartPalettes } from "../theme/chartPalette";
+import { useTheme } from "../theme/ThemeContext";
 
 /** Matches `FLAG_COLOURS` / `concentration_flag` keys from the Python metrics pipeline. */
 const FLAG_HEX: Record<string, string> = {
@@ -54,6 +56,9 @@ export function ConcentrationHeatmap({
 }: {
   stocksRows: Record<string, unknown>[];
 }) {
+  const { resolved } = useTheme();
+  const cp = chartPalettes[resolved];
+
   const chartData = useMemo(
     () => buildConcentrationRows(stocksRows),
     [stocksRows],
@@ -74,89 +79,89 @@ export function ConcentrationHeatmap({
   return (
     <CollapsibleSection title="Concentration heatmap">
       <div style={{ width: "100%", height: chartHeight }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                layout="vertical"
-                data={chartData}
-                margin={{ left: 4, right: 56, top: 8, bottom: 8 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#27272a"
-                  horizontal={false}
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            layout="vertical"
+            data={chartData}
+            margin={{ left: 4, right: 56, top: 8, bottom: 8 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke={cp.grid}
+              horizontal={false}
+            />
+            <XAxis
+              type="number"
+              domain={[0, xMax]}
+              stroke={cp.axisStroke}
+              tick={{ fill: cp.tickFill, fontSize: 11 }}
+              tickFormatter={(v) => `${v}%`}
+              label={{
+                value: "Portfolio Weight (%)",
+                position: "insideBottom",
+                offset: -4,
+                fill: cp.axisLabelFill,
+                fontSize: 11,
+              }}
+            />
+            <YAxis
+              type="category"
+              dataKey="symbol"
+              width={72}
+              stroke={cp.axisStroke}
+              tick={{ fill: cp.tickFill, fontSize: 11 }}
+            />
+            <Tooltip
+              cursor={{ fill: cp.cursorFill }}
+              contentStyle={{
+                backgroundColor: cp.tooltipBg,
+                border: `1px solid ${cp.tooltipBorder}`,
+                borderRadius: "6px",
+                fontSize: "12px",
+              }}
+              labelStyle={{ color: cp.tooltipLabel }}
+              formatter={(value: number) => [`${value.toFixed(2)}%`, "Weight"]}
+            />
+            <ReferenceLine
+              x={10}
+              stroke="rgba(150,150,150,0.5)"
+              strokeDasharray="4 4"
+              label={{
+                value: "10%",
+                position: "top",
+                fill: cp.axisLabelFill,
+                fontSize: 10,
+              }}
+            />
+            <ReferenceLine
+              x={25}
+              stroke="rgba(150,150,150,0.5)"
+              strokeDasharray="4 4"
+              label={{
+                value: "25%",
+                position: "top",
+                fill: cp.axisLabelFill,
+                fontSize: 10,
+              }}
+            />
+            <Bar dataKey="weight_pct" radius={[0, 4, 4, 0]} isAnimationActive={false}>
+              {chartData.map((entry, index) => (
+                <Cell
+                  key={`cell-${entry.symbol}-${index}`}
+                  fill={hexForFlag(entry.concentration_flag)}
                 />
-                <XAxis
-                  type="number"
-                  domain={[0, xMax]}
-                  stroke="#71717a"
-                  tick={{ fill: "#a1a1aa", fontSize: 11 }}
-                  tickFormatter={(v) => `${v}%`}
-                  label={{
-                    value: "Portfolio Weight (%)",
-                    position: "insideBottom",
-                    offset: -4,
-                    fill: "#71717a",
-                    fontSize: 11,
-                  }}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="symbol"
-                  width={72}
-                  stroke="#71717a"
-                  tick={{ fill: "#a1a1aa", fontSize: 11 }}
-                />
-                <Tooltip
-                  cursor={{ fill: "rgba(39,39,42,0.35)" }}
-                  contentStyle={{
-                    backgroundColor: "#18181b",
-                    border: "1px solid #3f3f46",
-                    borderRadius: "6px",
-                    fontSize: "12px",
-                  }}
-                  labelStyle={{ color: "#e4e4e7" }}
-                  formatter={(value: number) => [`${value.toFixed(2)}%`, "Weight"]}
-                />
-                <ReferenceLine
-                  x={10}
-                  stroke="rgba(150,150,150,0.5)"
-                  strokeDasharray="4 4"
-                  label={{
-                    value: "10%",
-                    position: "top",
-                    fill: "#71717a",
-                    fontSize: 10,
-                  }}
-                />
-                <ReferenceLine
-                  x={25}
-                  stroke="rgba(150,150,150,0.5)"
-                  strokeDasharray="4 4"
-                  label={{
-                    value: "25%",
-                    position: "top",
-                    fill: "#71717a",
-                    fontSize: 10,
-                  }}
-                />
-                <Bar dataKey="weight_pct" radius={[0, 4, 4, 0]} isAnimationActive={false}>
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${entry.symbol}-${index}`}
-                      fill={hexForFlag(entry.concentration_flag)}
-                    />
-                  ))}
-                  <LabelList
-                    dataKey="weight_pct"
-                    position="right"
-                    fill="#d4d4d8"
-                    fontSize={11}
-                    formatter={(v: number) => `${Number(v).toFixed(1)}%`}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+              ))}
+              <LabelList
+                dataKey="weight_pct"
+                position="right"
+                fill={cp.barLabelFill}
+                fontSize={11}
+                formatter={(v: number) => `${Number(v).toFixed(1)}%`}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
       <p className="mt-3 text-[11px] text-zinc-500">
         🟢 &lt; 10% · 🟡 10–25% · 🔴 &gt; 25%

@@ -23,15 +23,15 @@ function DataTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-zinc-800">
+    <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
       <table className="w-max min-w-full border-collapse text-left text-xs">
         <thead>
-          <tr className="border-b border-zinc-800 bg-zinc-950/80">
+          <tr className="border-b border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950/80">
             {columns.map((c) => (
               <th
                 key={c}
                 scope="col"
-                className="whitespace-nowrap px-2 py-2 font-semibold text-zinc-400"
+                className="whitespace-nowrap px-2 py-2 font-semibold text-zinc-600 dark:text-zinc-400"
               >
                 {c}
               </th>
@@ -52,12 +52,12 @@ function DataTable({
             rows.map((row, ri) => (
               <tr
                 key={`${ri}-${String(row.symbol ?? ri)}`}
-                className="border-b border-zinc-800/70 odd:bg-zinc-950/40"
+                className="border-b border-zinc-200/90 odd:bg-zinc-50 dark:border-zinc-800/70 dark:odd:bg-zinc-950/40"
               >
                 {columns.map((c) => (
                   <td
                     key={c}
-                    className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-200 tabular-nums"
+                    className="whitespace-nowrap px-2 py-1.5 font-mono text-zinc-800 tabular-nums dark:text-zinc-200"
                   >
                     {formatPositionCell(c, row[c])}
                   </td>
@@ -104,7 +104,7 @@ function Panel({
       {query.isLoading ? (
         <p className="text-sm text-zinc-500">Loading…</p>
       ) : query.isError ? (
-        <p className="text-sm text-amber-300/90">
+        <p className="text-sm text-amber-800 dark:text-amber-300/90">
           {(query.error as Error).message}
         </p>
       ) : (

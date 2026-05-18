@@ -27,18 +27,18 @@ function MetricTile({
 }) {
   return (
     <div
-      className="rounded-lg border border-zinc-800/90 bg-zinc-950/50 px-3 py-3"
+      className="rounded-lg border border-zinc-200/90 bg-zinc-100/80 px-3 py-3 dark:border-zinc-800/90 dark:bg-zinc-950/50"
       title={title}
     >
       <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
         {label}
       </div>
-      <div className="mt-1 text-lg font-semibold tabular-nums text-zinc-50">
+      <div className="mt-1 text-lg font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
         {value}
       </div>
       {delta ? (
         <div
-          className={`mt-0.5 text-xs font-medium tabular-nums ${deltaClassName ?? "text-zinc-400"}`}
+          className={`mt-0.5 text-xs font-medium tabular-nums ${deltaClassName ?? "text-zinc-500 dark:text-zinc-400"}`}
         >
           {delta}
         </div>
@@ -83,11 +83,11 @@ export function PortfolioOverview({
     "Target: 1–5%. Flag if > 7%.";
 
   let deltaLine: string | undefined;
-  let deltaClass = "text-zinc-400";
+  let deltaClass = "text-zinc-500 dark:text-zinc-400";
   if (optUpnl !== null) {
     deltaLine = fmtCurrency(optUpnl, 0);
-    if (optUpnl > 0) deltaClass = "text-emerald-400";
-    else if (optUpnl < 0) deltaClass = "text-red-400";
+    if (optUpnl > 0) deltaClass = "text-emerald-700 dark:text-emerald-400";
+    else if (optUpnl < 0) deltaClass = "text-red-600 dark:text-red-400";
   }
 
   const localRefresh = new Date();
@@ -103,7 +103,7 @@ export function PortfolioOverview({
 
   return (
     <div>
-      <h2 className="mb-3 text-base font-semibold text-zinc-100">
+      <h2 className="mb-3 text-base font-semibold text-zinc-900 dark:text-zinc-100">
         Portfolio Overview
       </h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -135,16 +135,16 @@ export function PortfolioOverview({
       </div>
 
       {theta !== null ? (
-        <p className="mt-3 text-xs text-zinc-500">
+        <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-500">
           <span aria-hidden>📉</span> Daily theta burn:{" "}
-          <span className="font-semibold text-zinc-300">
+          <span className="font-semibold text-zinc-800 dark:text-zinc-300">
             {fmtCurrency(theta, 2)}
           </span>{" "}
           (cost of holding all options for one more day)
         </p>
       ) : null}
 
-      <p className="mt-2 text-xs text-zinc-500">
+      <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-500">
         Last refreshed: {lastRefreshedStr}
       </p>
     </div>

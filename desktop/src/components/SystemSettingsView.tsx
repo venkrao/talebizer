@@ -36,22 +36,22 @@ export function SystemSettingsView({ active }: { active: boolean }) {
 
   return (
     <div className="w-full px-4 py-8 pb-24 sm:px-6 lg:px-8">
-      <header className="mb-8 border-b border-zinc-800 pb-6">
+      <header className="mb-8 border-b border-zinc-200 pb-6 dark:border-zinc-800">
         <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">
           Configuration & diagnostics
         </p>
-        <h1 className="mt-1 text-2xl font-semibold text-white">
+        <h1 className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-white">
           System & connection
         </h1>
-        <p className="mt-2 text-sm text-zinc-400">
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           API base:{" "}
-          <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-200">
+          <code className="rounded bg-zinc-200 px-1.5 py-0.5 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
             {getApiBase()}
           </code>
         </p>
         <button
           type="button"
-          className="mt-4 rounded-md bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-700"
+          className="mt-4 rounded-md bg-zinc-200 px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
           onClick={() => reloadStatus()}
         >
           Reload diagnostics
@@ -63,7 +63,9 @@ export function SystemSettingsView({ active }: { active: boolean }) {
           {!active ? null : envQ.isLoading ? (
             <p className="text-zinc-500">Loading…</p>
           ) : envQ.isError ? (
-            <p className="text-red-400">{(envQ.error as Error).message}</p>
+            <p className="text-red-600 dark:text-red-400">
+              {(envQ.error as Error).message}
+            </p>
           ) : envQ.data ? (
             <>
               <Row label="Backend" value={envQ.data.backend} />
@@ -86,7 +88,9 @@ export function SystemSettingsView({ active }: { active: boolean }) {
           {!active ? null : ibkrQ.isLoading ? (
             <p className="text-zinc-500">Loading…</p>
           ) : ibkrQ.isError ? (
-            <p className="text-red-400">{(ibkrQ.error as Error).message}</p>
+            <p className="text-red-600 dark:text-red-400">
+              {(ibkrQ.error as Error).message}
+            </p>
           ) : ibkrQ.data ? (
             <>
               <Row
@@ -110,7 +114,9 @@ export function SystemSettingsView({ active }: { active: boolean }) {
           {!active ? null : llmQ.isLoading ? (
             <p className="text-zinc-500">Loading…</p>
           ) : llmQ.isError ? (
-            <p className="text-red-400">{(llmQ.error as Error).message}</p>
+            <p className="text-red-600 dark:text-red-400">
+              {(llmQ.error as Error).message}
+            </p>
           ) : llmQ.data ? (
             <>
               <Row label="Enabled" value={String(llmQ.data.ollama_enabled)} />
